@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistema Tierra Interactivo con Controles de Tiempo y Asteroides</title>
+    <style>
+        body {
+            margin: 0;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            background-color: #000;
+            overflow: hidden;
+            font-family: Arial, sans-serif;
+            color: white;
+        }
+        .solar-system {
+            position: relative;
+            width: 800px;
+            height: 800px;
+        }
+        .earth {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 100px;
+            height: 100px;
+            background-image: url('https://upload.wikimedia.org/wikipedia/commons/thumb/c/cb/The_Blue_Marble_%28remastered%29.jpg/240px-The_Blue_Marble_%28remastered%29.jpg');
+            background-size: cover;
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 10;
+            cursor: pointer;
+        }
+        .orbit {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+        }
+        .celestial-body {
+            position: absolute;
+            border-radius: 50%;
+            cursor: pointer;
+        }
+        .info-panel {
+            position: fixed;
+            top: 10px;
+            left: 10px;
+            background-color: rgba(0, 0, 0, 0.7);
+            color: white;
+            padding: 10px;
+            border-radius: 5px;
+            max-width: 300px;
+            display: none;
+        }
+        .controls {
+            margin-top: 20px;
+        }
+        button {
+            margin: 0 5px;
+            padding: 5px 10px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <div class="solar-system">
+        <div class="earth" onclick="showInfo('earth')"></div>
+    </div>
+    <div class="info-panel" id="infoPanel"></div>
+    <div class="controls">
+        <button onclick="setTimeScale(0.5)">Lento (0.5x)</button>
+        <button onclick="setTimeScale(1)">Normal (1x)</button>
+        <button onclick="setTimeScale(2)">Rápido (2x)</button>
+        <button onclick="togglePause()">Pausar/Reanudar</button>
+        <button onclick="resetSimulation()">Reiniciar</button>
+        <button onclick="toggleOrbits()">Mostrar/Ocultar Órbitas</button>
+    </div>
+
+    <script>
+        const solarSystem = document.querySelector('.solar-system');
+        const infoPanel = document.getElementById('infoPanel');
+        let timeScale = 1;
+        let isPaused = false;
+        let lastTimestamp = 0;
+        let orbitsVisible = true;
+        
+        const celestialBodies = {
+            earth: { name: "Tierra", info: "Tercer planeta del Sistema Solar, hogar de la vida como la conocemos." },
+            moon: { name: "Luna", info: "Único satélite natural de la Tierra, influye en las mareas." },
+            iss: { name: "Estación Espacial Internacional", info: "Laboratorio espacial en órbita terrestre baja." },
+            hubble: { name: "Telescopio Hubble", info: "Observatorio espacial que orbita fuera de la atmósfera terrestre." },
+            gps: { name: "Satélite GPS", info: "Parte de la constelación de satélites para geolocalización." },
+            comet: { name: "Cometa", info: "Cuerpo celeste compuesto de hielo y polvo con una órbita muy elíptica." },
+            debris: { name: "Basura Espacial", info: "Restos de satélites y otros objetos artificiales en órbita." }
+        };
+
+        // Agregamos más asteroides
+        for (let i = 1; i <= 10; i++) {
+            celestialBodies[`asteroid${i}`] = { 
+                name: `Asteroide ${i}`, 
+                info: `Cuerpo rocoso que orbita el Sol, principalmente en el cinturón de asteroides. Tamaño y composición variables.`
+            };
+        }
+
+        function createOrbit(radius) {
+            const orbit = document.createElement('div');
+            orbit.classList.add('orbit');
+            orbit.style.width = `${radius * 2}px`;
+            orbit.style.height = `${radius * 2}px`;
+            solarSystem.appendChild(orbit);
+            return orbit;
+        }
+
+        function createCelestialBody(orbitRadius, size, color, period, id) {
+            const body = document.createElement('div');
+            body.classList.add('celestial-body');
+            body.style.width = `${size}px`;
+            body.style.height = `${size}px`;
+            body.style.backgroundColor = color;
+            body.onclick = () => showInfo(id);
+            body.dataset.orbitRadius = orbitRadius;
+            body.dataset.period = period;
+            body.dataset.angle = Math.random() * 2 * Math.PI; // Random start position
+            body.dataset.id = id;
+            
+            solarSystem.appendChild(body);
+            return body;
+        }
+
+        function updateBodyPosition(body, elapsedTime) {
+            const orbitRadius = parseFloat(body.dataset.orbitRadius);
+            const period = parseFloat(body.dataset.period);
+            let angle = parseFloat(body.dataset.angle);
+            
+            // Calculate new angle based on elapsed time and orbital period
+            angle += (2 * Math.PI / period) * elapsedTime;
+            body.dataset.angle = angle % (2 * Math.PI);
+            
+            const x = Math.cos(angle) * orbitRadius;
+            const y = Math.sin(angle) * orbitRadius;
+            body.style.transform = `translate(${x + 400}px, ${y + 400}px)`; // 400px offset to center
+        }
+
+        function animateSystem(timestamp) {
+            if (!lastTimestamp) lastTimestamp = timestamp;
+            let elapsedTime = (timestamp - lastTimestamp) / 1000 * timeScale; // Convert to seconds and apply time scale
+            lastTimestamp = timestamp;
+
+            if (!isPaused) {
+                document.querySelectorAll('.celestial-body').forEach(body => {
+                    updateBodyPosition(body, elapsedTime);
+                });
+            }
+            requestAnimationFrame(animateSystem);
+        }
+
+        function showInfo(id) {
+            const body = celestialBodies[id];
+            if (body) {
+                infoPanel.innerHTML = `<h3>${body.name}</h3><p>${body.info}</p>`;
+                infoPanel.style.display = 'block';
+            } else {
+                console.error(`No se encontró información para el cuerpo celeste con id: ${id}`);
+            }
+        }
+
+        function setTimeScale(scale) {
+            timeScale = scale;
+            isPaused = false;
+            console.log(`Time scale set to ${scale}x`); // Debug log
+        }
+
+        function togglePause() {
+            isPaused = !isPaused;
+            console.log(isPaused ? "Paused" : "Resumed"); // Debug log
+        }
+
+        function resetSimulation() {
+            timeScale = 1;
+            isPaused = false;
+            document.querySelectorAll('.celestial-body').forEach(body => {
+                body.dataset.angle = Math.random() * 2 * Math.PI;
+            });
+            console.log("Simulation reset"); // Debug log
+        }
+
+        function toggleOrbits() {
+            orbitsVisible = !orbitsVisible;
+            document.querySelectorAll('.orbit').forEach(orbit => {
+                orbit.style.display = orbitsVisible ? 'block' : 'none';
+            });
+            console.log(orbitsVisible ? "Orbits shown" : "Orbits hidden");
+        }
+
+        // Create orbits and celestial bodies
+        const bodies = [
+            createCelestialBody(120, 20, '#ccc', 10, 'moon'),
+            createCelestialBody(180, 10, '#ff0', 5, 'iss'),
+            createCelestialBody(220, 8, '#0ff', 7, 'hubble'),
+            createCelestialBody(260, 6, '#f0f', 6, 'gps'),
+            createCelestialBody(340, 7, '#fff', 20, 'comet'),
+            createCelestialBody(380, 3, '#f00', 8, 'debris')
+        ];
+
+        // Create orbits separately
+        [120, 180, 220, 260, 340, 380].forEach(radius => createOrbit(radius));
+
+        // Crear asteroides con órbitas y tamaños aleatorios
+        for (let i = 1; i <= 10; i++) {
+            const orbitRadius = Math.random() * 100 + 300; // Órbitas entre 300 y 400
+            const size = Math.random() * 4 + 2; // Tamaños entre 2 y 6
+            const period = Math.random() * 10 + 10; // Períodos entre 10 y 20
+            const color = `rgb(${Math.random()*100+155}, ${Math.random()*100+155}, ${Math.random()*100+155})`; // Colores aleatorios claros
+            bodies.push(createCelestialBody(orbitRadius, size, color, period, `asteroid${i}`));
+            createOrbit(orbitRadius);
+        }
+
+        requestAnimationFrame(animateSystem);
+    </script>
+</body>
+</html>

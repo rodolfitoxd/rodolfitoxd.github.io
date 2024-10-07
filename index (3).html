@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistema Solar Interactivo Completo</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background-image: url(https://i.pinimg.com/originals/0c/bf/2f/0cbf2f5c3fb37d033c0bc791ae196dbb.gif);
+            overflow: hidden;
+            font-family: Arial, sans-serif;
+            color: white;
+        }
+        #solar-system {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+        }
+        .celestial-body {
+            position: absolute;
+            border-radius: 50%;
+            cursor: pointer;
+            transition: transform 0.3s;
+        }
+        .celestial-body:hover {
+            transform: scale(1.2);
+        }
+        #sun {
+            position: absolute;
+            left: 50%;
+            top: 50%;
+            width: 60px;
+            height: 60px;
+            background-color: #FFD700;
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            box-shadow: 0 0 60px #FFD700;
+            cursor: pointer;
+        }
+        #info-panel {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            background-color: rgba(255, 255, 255, 0.1);
+            padding: 10px;
+            border-radius: 5px;
+            display: none;
+            max-width: 300px;
+        }
+        .orbit {
+            position: absolute;
+            border-radius: 50%;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+        }
+        #controls {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background-color: rgba(255, 255, 255, 0.1);
+            padding: 10px;
+            border-radius: 5px;
+        }
+        button {
+            margin: 5px;
+            padding: 5px 10px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 3px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        #clock {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background-color: rgba(255, 255, 255, 0.1);
+            padding: 10px;
+            border-radius: 5px;
+            font-size: 18px;
+        }
+        .comet {
+            position: absolute;
+            width: 4px;
+            height: 4px;
+            background-color: #fff;
+            border-radius: 50%;
+        }
+        .comet::after {
+            content: '';
+            position: absolute;
+            width: 20px;
+            height: 2px;
+            background: linear-gradient(to left, rgba(255,255,255,0.8), rgba(255,255,255,0));
+            transform: translateX(-100%);
+        }
+        .meteor {
+            position: absolute;
+            width: 2px;
+            height: 2px;
+            background-color: #fff;
+            border-radius: 50%;
+        }
+        .satellite {
+            position: absolute;
+            width: 3px;
+            height: 3px;
+            background-color: #ccc;
+            border-radius: 50%;
+        }
+    </style>
+</head>
+<body>
+    
+    <div id="solar-system">
+        <div id="sun"></div>
+    </div>
+    <div id="info-panel"></div>
+    <div id="controls">
+        <button id="toggle-orbits">Mostrar/Ocultar Órbitas</button>
+        <button id="toggle-animation">Pausar/Reanudar</button>
+        <button id="speed-up">Acelerar</button>
+        <button id="slow-down">Desacelerar</button>
+    </div>
+    <div id="clock"></div>
+
+    <script>
+        const planets = [
+            { name: "Mercurio", color: "#8C7853", size: 10, orbit: 100, speed: 0.02, info: "El planeta más cercano al Sol.", yearLength: 88 },
+            { name: "Venus", color: "#FFA500", size: 15, orbit: 140, speed: 0.015, info: "El planeta más caliente del sistema solar.", yearLength: 225 },
+            { name: "Tierra", color: "#4169E1", size: 16, orbit: 180, speed: 0.01, info: "Nuestro hogar, el único planeta conocido con vida.", yearLength: 365, satellites: 1 },
+            { name: "Marte", color: "#FF4500", size: 14, orbit: 220, speed: 0.008, info: "Conocido como el planeta rojo.", yearLength: 687, satellites: 2 },
+            { name: "Júpiter", color: "#DEB887", size: 40, orbit: 300, speed: 0.005, info: "El planeta más grande del sistema solar.", yearLength: 4333, satellites: 4 },
+            { name: "Saturno", color: "#F4A460", size: 35, orbit: 380, speed: 0.004, info: "Famoso por sus anillos.", yearLength: 10759, satellites: 3 },
+            { name: "Urano", color: "#87CEEB", size: 25, orbit: 440, speed: 0.003, info: "El planeta inclinado.", yearLength: 30687, satellites: 2 },
+            { name: "Neptuno", color: "#4682B4", size: 24, orbit: 500, speed: 0.002, info: "El planeta más ventoso.", yearLength: 60190, satellites: 1 }
+        ];
+
+        const solarSystem = document.getElementById('solar-system');
+        const infoPanel = document.getElementById('info-panel');
+        const sun = document.getElementById('sun');
+        const clock = document.getElementById('clock');
+        let animationPaused = false;
+        let speedMultiplier = 1;
+        let simulationTime = new Date(2000, 0, 1);
+        const timeMultiplier = 60 * 60 * 24; // 1 second = 1 day
+
+        sun.addEventListener('click', () => {
+            infoPanel.innerHTML = "<h3>Sol</h3><p>La estrella central de nuestro sistema solar.</p>";
+            infoPanel.style.display = 'block';
+        });
+
+        function createCelestialBody(type, parent) {
+            const body = document.createElement('div');
+            body.className = `celestial-body ${type}`;
+            parent.appendChild(body);
+            return body;
+        }
+
+        planets.forEach(planet => {
+            const orbitEl = document.createElement('div');
+            orbitEl.className = 'orbit';
+            orbitEl.style.width = `${planet.orbit * 2}px`;
+            orbitEl.style.height = `${planet.orbit * 2}px`;
+            solarSystem.appendChild(orbitEl);
+
+            const planetEl = createCelestialBody('planet', solarSystem);
+            planetEl.style.width = `${planet.size}px`;
+            planetEl.style.height = `${planet.size}px`;
+            planetEl.style.backgroundColor = planet.color;
+
+            planetEl.addEventListener('click', () => {
+                infoPanel.innerHTML = `<h3>${planet.name}</h3><p>${planet.info}</p>`;
+                infoPanel.style.display = 'block';
+            });
+
+            let angle = Math.random() * Math.PI * 2;
+            if (planet.satellites) {
+                for (let i = 0; i < planet.satellites; i++) {
+                    const satellite = createCelestialBody('satellite', solarSystem);
+                    let satAngle = Math.random() * Math.PI * 2;
+                    const satOrbit = planet.size * 2 + Math.random() * 20;
+                    setInterval(() => {
+                        if (!animationPaused) {
+                            satAngle += 0.05 * speedMultiplier;
+                            const satX = Math.cos(satAngle) * satOrbit + parseFloat(planetEl.style.left);
+                            const satY = Math.sin(satAngle) * satOrbit + parseFloat(planetEl.style.top);
+                            satellite.style.left = `${satX}px`;
+                            satellite.style.top = `${satY}px`;
+                        }
+                    }, 50);
+                }
+            }
+
+            function animate() {
+                if (!animationPaused) {
+                    angle += planet.speed * speedMultiplier;
+                    const x = Math.cos(angle) * planet.orbit + window.innerWidth / 2 - planet.size / 2;
+                    const y = Math.sin(angle) * planet.orbit + window.innerHeight / 2 - planet.size / 2;
+                    planetEl.style.left = `${x}px`;
+                    planetEl.style.top = `${y}px`;
+                }
+                requestAnimationFrame(animate);
+            }
+            animate();
+        });
+
+        function createComet() {
+            const comet = createCelestialBody('comet', solarSystem);
+            let angle = Math.random() * Math.PI * 2;
+            const orbitRadius = Math.random() * 300 + 200;
+            const speed = 0.005 + Math.random() * 0.01;
+
+            function animate() {
+                if (!animationPaused) {
+                    angle += speed * speedMultiplier;
+                    const x = Math.cos(angle) * orbitRadius + window.innerWidth / 2;
+                    const y = Math.sin(angle) * orbitRadius + window.innerHeight / 2;
+                    comet.style.left = `${x}px`;
+                    comet.style.top = `${y}px`;
+                }
+                requestAnimationFrame(animate);
+            }
+            animate();
+        }
+
+        function createMeteor() {
+            const meteor = createCelestialBody('meteor', solarSystem);
+            const startX = Math.random() * window.innerWidth;
+            const startY = -10;
+            const endX = startX + (Math.random() - 0.5) * 200;
+            const endY = window.innerHeight + 10;
+            let progress = 0;
+
+            function animate() {
+                if (!animationPaused) {
+                    progress += 0.02 * speedMultiplier;
+                    const x = startX + (endX - startX) * progress;
+                    const y = startY + (endY - startY) * progress;
+                    meteor.style.left = `${x}px`;
+                    meteor.style.top = `${y}px`;
+
+                    if (progress >= 1) {
+                        solarSystem.removeChild(meteor);
+                        createMeteor();
+                    } else {
+                        requestAnimationFrame(animate);
+                    }
+                } else {
+                    requestAnimationFrame(animate);
+                }
+            }
+            animate();
+        }
+
+        for (let i = 0; i < 3; i++) createComet();
+        for (let i = 0; i < 5; i++) createMeteor();
+
+        function updateClock() {
+            if (!animationPaused) {
+                simulationTime.setTime(simulationTime.getTime() + 1000 * timeMultiplier * speedMultiplier);
+            }
+            const year = simulationTime.getFullYear();
+            const month = simulationTime.toLocaleString('default', { month: 'long' });
+            const day = simulationTime.getDate();
+            const hours = simulationTime.getHours().toString().padStart(2, '0');
+            const minutes = simulationTime.getMinutes().toString().padStart(2, '0');
+            clock.textContent = `Año: ${year}, ${month} ${day}, ${hours}:${minutes}`;
+            requestAnimationFrame(updateClock);
+        }
+        updateClock();
+
+        document.addEventListener('click', (e) => {
+            if (!e.target.classList.contains('celestial-body')) {
+                infoPanel.style.display = 'none';
+            }
+        });
+
+        document.getElementById('toggle-orbits').addEventListener('click', () => {
+            const orbits = document.querySelectorAll('.orbit');
+            orbits.forEach(orbit => {
+                orbit.style.display = orbit.style.display === 'none' ? 'block' : 'none';
+            });
+        });
+
+        document.getElementById('toggle-animation').addEventListener('click', () => {
+            animationPaused = !animationPaused;
+        });
+
+        document.getElementById('speed-up').addEventListener('click', () => {
+            speedMultiplier *= 2;
+        });
+
+        document.getElementById('slow-down').addEventListener('click', () => {
+            speedMultiplier /= 2;
+        });
+    </script>
+</body>
+</html>

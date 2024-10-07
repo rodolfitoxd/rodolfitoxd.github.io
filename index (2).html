@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Asteroid Destroyer</title>
+    <style>  
+        body { margin: 0; overflow: hidden; }
+        canvas { background: black; display: block; }
+    </style>
+</head>
+<body>
+    <canvas id="gameCanvas" width="800" height="600"></canvas>
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        // Set screen dimensions
+        const SCREEN_WIDTH = canvas.width;
+        const SCREEN_HEIGHT = canvas.height;
+
+        // Define colors
+        const WHITE = '#FFFFFF';
+        const BLACK = '#000000';
+
+        // Define spaceship properties
+        const SPACESHIP_WIDTH = 50;
+        const SPACESHIP_HEIGHT = 50;
+        const SPACESHIP_SPEED = 4;
+
+        // Define asteroid properties
+        const ASTEROID_WIDTH = 30;
+        const ASTEROID_HEIGHT = 30;
+        const ASTEROID_SPEED = 2;
+
+        // Define bullet properties   
+        const BULLET_WIDTH = 10;
+        const BULLET_HEIGHT = 10;
+        const BULLET_SPEED = 10;
+
+        // Load spaceship and asteroid images
+        const spaceshipImage = new Image();
+        spaceshipImage.src = 'spaceship.png';
+
+        const asteroidImage = new Image();
+        asteroidImage.src = 'asteroid.png';
+
+        // Initialize spaceship position
+        let spaceshipX = SCREEN_WIDTH / 2 - SPACESHIP_WIDTH / 2;
+        let spaceshipY = SCREEN_HEIGHT - SPACESHIP_HEIGHT - 20;
+
+        // Initialize asteroid and bullet lists
+        let asteroids = [];
+        let bullets = [];
+
+        // Initialize score
+        let score = 0;
+
+        // Game loop
+        function gameLoop() {
+            update();
+            draw();
+            requestAnimationFrame(gameLoop);
+        }
+
+        function update() {
+            // Move spaceship
+            if (keys['ArrowLeft'] && spaceshipX > 0) {
+                spaceshipX -= SPACESHIP_SPEED;
+            }
+            if (keys['ArrowRight'] && spaceshipX < SCREEN_WIDTH - SPACESHIP_WIDTH) {
+                spaceshipX += SPACESHIP_SPEED;
+            }
+
+            // Shoot bullet
+            if (keys[' ']) {
+                let bulletX = spaceshipX + SPACESHIP_WIDTH / 2 - BULLET_WIDTH / 2;
+                let bulletY = spaceshipY;
+                bullets.push({ x: bulletX, y: bulletY });
+                keys[' '] = false; // Prevent multiple bullets from being shot
+            }
+
+            // Move asteroids
+            asteroids.forEach(asteroid => asteroid.y += ASTEROID_SPEED);
+
+            // Move bullets
+            bullets.forEach(bullet => bullet.y -= BULLET_SPEED);
+
+            // Check for collisions
+            checkCollisions();
+
+            // Add new asteroids
+            if (Math.random() < 0.01) {
+                let asteroidX = Math.random() * (SCREEN_WIDTH - ASTEROID_WIDTH);
+                let asteroidY = 0;
+                asteroids.push({ x: asteroidX, y: asteroidY });
+            }
+        }
+
+        function checkCollisions() {
+            // Check for asteroid destruction and spaceship collision
+            asteroids = asteroids.filter(asteroid => {
+                if (asteroid.y > SCREEN_HEIGHT) return false; // Remove off-screen asteroids
+
+                // Check for bullet collisions
+                let asteroidHit = false;
+                bullets = bullets.filter(bullet => {
+                    const hit = asteroid.x < bullet.x + BULLET_WIDTH &&
+                                asteroid.x + ASTEROID_WIDTH > bullet.x &&
+                                asteroid.y < bullet.y + BULLET_HEIGHT &&
+                                asteroid.y + ASTEROID_HEIGHT > bullet.y;
+
+                    if (hit) {
+                        score += 1; // Increase score on hit
+                        asteroidHit = true; // Mark asteroid as hit
+                        return false; // Remove bullet
+                    }
+                    return true; // Keep bullet
+                });
+
+                return !asteroidHit; // Remove asteroid if it was hit
+            });
+
+            // Check for spaceship collision
+            asteroids.forEach(asteroid => {
+                if (asteroid.x < spaceshipX + SPACESHIP_WIDTH &&
+                    asteroid.x + ASTEROID_WIDTH > spaceshipX &&
+                    asteroid.y < spaceshipY + SPACESHIP_HEIGHT &&
+                    asteroid.y + ASTEROID_HEIGHT > spaceshipY) {
+                    alert("Game Over! Your score: " + score);
+                    window.location.reload(); // Restart the game
+                }
+            });
+        }
+
+        function draw() {
+            // Clear the screen
+            ctx.fillStyle = BLACK;
+            ctx.fillRect(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT);
+
+            // Draw spaceship
+            ctx.drawImage(spaceshipImage, spaceshipX, spaceshipY, SPACESHIP_WIDTH, SPACESHIP_HEIGHT);
+
+            // Draw asteroids
+            asteroids.forEach(asteroid => {
+                ctx.drawImage(asteroidImage, asteroid.x, asteroid.y, ASTEROID_WIDTH, ASTEROID_HEIGHT);
+            });
+
+            // Draw bullets
+            bullets.forEach(bullet => {
+                ctx.fillStyle = WHITE;
+                ctx.fillRect(bullet.x, bullet.y, BULLET_WIDTH, BULLET_HEIGHT);
+            });
+
+            // Draw the score
+            ctx.fillStyle = WHITE;
+            ctx.font = '20px Arial';
+            ctx.fillText("Score: " + score, 10, 30);
+        }
+
+        // Handle keyboard input
+        const keys = {};
+        window.addEventListener('keydown', (e) => {
+            keys[e.key] = true;
+        });
+
+        window.addEventListener('keyup', (e) => {
+            keys[e.key] = false;
+        });
+
+        // Start the game loop when images are loaded
+        spaceshipImage.onload = () => {
+            asteroidImage.onload = () => {
+                gameLoop();
+            };
+        };
+    </script>
+</body>
+</html>
